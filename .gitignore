@@ -1,0 +1,4 @@
+.vscode/.ropeproject
+__pycache__
+*.log
+test_files/
