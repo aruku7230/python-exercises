@@ -43,3 +43,5 @@ print an error.
 ## Todo
 
 - Add integration test.
+  - add symlink file point to a existed file
+  - add file in GB size.
