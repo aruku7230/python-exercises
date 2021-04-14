@@ -1,6 +1,9 @@
+import os
+import subprocess
 import pytest
 from search_big_files import _parse_size as parse_size
 from search_big_files import _get_readable_size as get_readable_size
+from search_big_files import search_big_files
 
 def test_parse_size():
     """Test _parse_size function"""
@@ -77,3 +80,138 @@ def test_get_readable_size():
     assert get_readable_size(one_gb * 1000) == '1000.00 GB'
     assert get_readable_size(one_gb * 1024) == '1024.00 GB'
     assert get_readable_size(one_gb * 2048) == '2048.00 GB'
+
+def test_search_big_files(capsys):
+    """Test search_big_files function"""
+    # Test files structure:
+    # test_files\
+    # |--home\
+    #    |--app\
+    #       |--text_editor.out 2MB
+    #       |--tree.out 3KB
+    #    |--books\
+    #       |--learn_emacs.out 1.2KB
+    #       |--learn_javascript.out 1KB
+    #       |--learn_python.out 2KB
+    #    |--videos\
+    #       |--famaily\
+    #          |--happy_birthday.out 10MB
+    #          |--happy_newyear.out 30MB
+    #          |--weekend.out 12MB
+    #    |--a.out 1B
+    #    |--zero.out 0B
+    #    |--link.out -> /tmp/not_existed_file_99999999
+    #    |--readme.out 300B
+    #    |--todo.out 200B
+    # Create test folders and files.
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(script_dir)
+    shell_script = './create_test_files.sh'
+    process = subprocess.run([shell_script], check=True)
+    if process.returncode != 0:
+        assert False, 'Create test files failed.'
+
+    def verify_test_result():
+        expected_first_line = ('Searching files equal to or larger than '
+                               + f'{file_size_info} in folder: "{test_files_root}" ...')
+        expected_last_line = 'Search is done.'
+
+        search_big_files(test_files_root, file_size)
+        captured = capsys.readouterr().out
+        captured_list = captured.splitlines()
+        captured_first_line = captured_list[0]
+        captured_last_line = captured_list[-1]
+        captured_result_files = set(captured_list[1:-1])
+
+        assert captured_first_line == expected_first_line
+        assert captured_last_line == expected_last_line
+        assert captured_result_files == expected_result_files
+
+    test_files_root = 'test_files/home'
+
+    # Test search_big_files(root, '1B')
+    file_size = '1B'
+    file_size_info = '1 byte (1 bytes)'
+    expected_result_files = {
+        '1 byte (1 bytes) test_files/home/a.out',
+        '200 bytes (200 bytes) test_files/home/todo.out',
+        '300 bytes (300 bytes) test_files/home/readme.out',
+        '2.0 MB (2,097,152 bytes) test_files/home/app/text_editor.out',
+        '3 KB (3,072 bytes) test_files/home/app/tree.out',
+        '1 KB (1,024 bytes) test_files/home/books/learn_javascript.out',
+        '1 KB (1,228 bytes) test_files/home/books/learn_emacs.out',
+        '2 KB (2,048 bytes) test_files/home/books/learn_python.out',
+        '30.0 MB (31,457,280 bytes) test_files/home/videos/family/happy_newyear.out',
+        '10.0 MB (10,485,760 bytes) test_files/home/videos/family/happy_birthday.out',
+        '12.0 MB (12,582,912 bytes) test_files/home/videos/family/weekend.out',
+    }
+    verify_test_result()
+
+    # Test search_big_files(root, '500B')
+    file_size = '500B'
+    file_size_info = '500 bytes (500 bytes)'
+    expected_result_files = {
+        '3 KB (3,072 bytes) test_files/home/app/tree.out',
+        '1 KB (1,024 bytes) test_files/home/books/learn_javascript.out',
+        '1 KB (1,228 bytes) test_files/home/books/learn_emacs.out',
+        '2 KB (2,048 bytes) test_files/home/books/learn_python.out',
+        '2.0 MB (2,097,152 bytes) test_files/home/app/text_editor.out',
+        '10.0 MB (10,485,760 bytes) test_files/home/videos/family/happy_birthday.out',
+        '12.0 MB (12,582,912 bytes) test_files/home/videos/family/weekend.out',
+        '30.0 MB (31,457,280 bytes) test_files/home/videos/family/happy_newyear.out',
+    }
+    verify_test_result()
+
+    # Test search_big_files(root, '1KB')
+    file_size = '1 kb'
+    file_size_info = '1 KB (1,024 bytes)'
+    expected_result_files = {
+        '3 KB (3,072 bytes) test_files/home/app/tree.out',
+        '2.0 MB (2,097,152 bytes) test_files/home/app/text_editor.out',
+        '1 KB (1,024 bytes) test_files/home/books/learn_javascript.out',
+        '1 KB (1,228 bytes) test_files/home/books/learn_emacs.out',
+        '2 KB (2,048 bytes) test_files/home/books/learn_python.out',
+        '30.0 MB (31,457,280 bytes) test_files/home/videos/family/happy_newyear.out',
+        '10.0 MB (10,485,760 bytes) test_files/home/videos/family/happy_birthday.out',
+        '12.0 MB (12,582,912 bytes) test_files/home/videos/family/weekend.out',
+    }
+    verify_test_result()
+
+    # Test search_big_files(root, '1.2KB')
+    file_size = '1.2KB'
+    file_size_info = '1 KB (1,228 bytes)'
+    expected_result_files = {
+        '2.0 MB (2,097,152 bytes) test_files/home/app/text_editor.out',
+        '3 KB (3,072 bytes) test_files/home/app/tree.out',
+        '1 KB (1,228 bytes) test_files/home/books/learn_emacs.out',
+        '2 KB (2,048 bytes) test_files/home/books/learn_python.out',
+        '10.0 MB (10,485,760 bytes) test_files/home/videos/family/happy_birthday.out',
+        '12.0 MB (12,582,912 bytes) test_files/home/videos/family/weekend.out',
+        '30.0 MB (31,457,280 bytes) test_files/home/videos/family/happy_newyear.out',
+    }
+    verify_test_result()
+
+    # Test search_big_files(root, '10MB')
+    file_size = '10 MB'
+    file_size_info = '10.0 MB (10,485,760 bytes)'
+    expected_result_files = {
+        '10.0 MB (10,485,760 bytes) test_files/home/videos/family/happy_birthday.out',
+        '30.0 MB (31,457,280 bytes) test_files/home/videos/family/happy_newyear.out',
+        '12.0 MB (12,582,912 bytes) test_files/home/videos/family/weekend.out',
+    }
+    verify_test_result()
+
+    # Test search_big_files(root, '10')
+    file_size = '10'
+    file_size_info = '10.0 MB (10,485,760 bytes)'
+    expected_result_files = {
+        '10.0 MB (10,485,760 bytes) test_files/home/videos/family/happy_birthday.out',
+        '30.0 MB (31,457,280 bytes) test_files/home/videos/family/happy_newyear.out',
+        '12.0 MB (12,582,912 bytes) test_files/home/videos/family/weekend.out',
+    }
+    verify_test_result()
+
+    # Delete test files if succeeded.
+    process = subprocess.run(['rm', '-rf', 'test_files'], check=True)
+    if process.returncode != 0:
+        assert False, 'Clear test files failed.'
