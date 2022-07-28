@@ -10,10 +10,10 @@ BLOCKSIZE = 1048576 # 1 MB. Unit is Byte.
 def convert_to_utf8(source_file_name, source_encoding = 'shift-jis'):
     """Convert file encoded with Shift-JIS to UTF-8."""
 
-    with tempfile.TemporaryFile("w+t") as temp_file:
+    with tempfile.TemporaryFile('w+t') as temp_file:
         read_succeeded = False
         try :
-            with open(source_file_name, "r", encoding = source_encoding) as source_file:
+            with open(source_file_name, 'r', encoding = source_encoding) as source_file:
                 while True:
                     contents = source_file.read(BLOCKSIZE)
                     if not contents:
@@ -33,7 +33,7 @@ def convert_to_utf8(source_file_name, source_encoding = 'shift-jis'):
 
             # Overwrite original file with different encoding.
             try :
-                with open(source_file_name, "w", encoding = "utf-8") as source_file:
+                with open(source_file_name, 'w', encoding = 'utf-8') as source_file:
                     while True:
                         contents = temp_file.read(BLOCKSIZE)
                         if not contents:
